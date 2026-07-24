@@ -11,8 +11,12 @@ const initialRequest = {
   status: 'pending',
   icon: '◈'
 };
-const routeForTab = { home: '/', pacts: '/pact', requests: '/requests', insights: '/reflection' };
-const tabForRoute = (path) => Object.entries(routeForTab).find(([, route]) => route === path)?.[0] ?? 'home';
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+const routeForTab = { home: '/', pacts: '/pact/', requests: '/requests/', insights: '/reflection/' };
+const tabForRoute = (path) => {
+  const relativePath = path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
+  return Object.entries(routeForTab).find(([, route]) => route === relativePath)?.[0] ?? 'home';
+};
 
 function App() {
   const [role, setRole] = useState('parent');
@@ -25,7 +29,7 @@ function App() {
   const [toast, setToast] = useState('');
 
   const notify = (message) => { setToast(message); window.setTimeout(() => setToast(''), 2800); };
-  const navigate = (nextTab) => { window.history.pushState({}, '', routeForTab[nextTab]); setTab(nextTab); };
+  const navigate = (nextTab) => { window.location.assign(`${basePath}${routeForTab[nextTab]}`); };
   useEffect(() => { const onPopState = () => setTab(tabForRoute(window.location.pathname)); window.addEventListener('popstate', onPopState); return () => window.removeEventListener('popstate', onPopState); }, []);
   const approve = () => { setRequest({ ...request, status: 'approved' }); setEnforcement('extended'); notify('30 minutes approved — Maya has been notified.'); };
   const decline = () => { setRequest({ ...request, status: 'declined' }); notify('Request declined with a kind note.'); };
