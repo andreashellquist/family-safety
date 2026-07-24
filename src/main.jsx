@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 import './pages.css';
@@ -11,10 +11,12 @@ const initialRequest = {
   status: 'pending',
   icon: '◈'
 };
+const routeForTab = { home: '/', pacts: '/pact', requests: '/requests', insights: '/reflection' };
+const tabForRoute = (path) => Object.entries(routeForTab).find(([, route]) => route === path)?.[0] ?? 'home';
 
 function App() {
   const [role, setRole] = useState('parent');
-  const [tab, setTab] = useState('home');
+  const [tab, setTab] = useState(() => tabForRoute(window.location.pathname));
   const [request, setRequest] = useState(initialRequest);
   const [pactAccepted, setPactAccepted] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
@@ -23,6 +25,8 @@ function App() {
   const [toast, setToast] = useState('');
 
   const notify = (message) => { setToast(message); window.setTimeout(() => setToast(''), 2800); };
+  const navigate = (nextTab) => { window.history.pushState({}, '', routeForTab[nextTab]); setTab(nextTab); };
+  useEffect(() => { const onPopState = () => setTab(tabForRoute(window.location.pathname)); window.addEventListener('popstate', onPopState); return () => window.removeEventListener('popstate', onPopState); }, []);
   const approve = () => { setRequest({ ...request, status: 'approved' }); setEnforcement('extended'); notify('30 minutes approved — Maya has been notified.'); };
   const decline = () => { setRequest({ ...request, status: 'declined' }); notify('Request declined with a kind note.'); };
 
@@ -31,24 +35,24 @@ function App() {
       <div className="brand"><span className="brand-mark">P</span><span>pact</span></div>
       <div className="family"><div className="family-avatar">AH</div><div><strong>Andreas’s family</strong><small>2 members</small></div><span className="chevron">⌄</span></div>
       <nav>
-        <Nav active={tab === 'home'} icon="⌂" label="Today" onClick={() => setTab('home')} />
-        <Nav active={tab === 'pacts'} icon="♡" label="Our pact" onClick={() => setTab('pacts')} />
-        <Nav active={tab === 'requests'} icon="↗" label="Requests" badge={request.status === 'pending' ? '1' : ''} onClick={() => setTab('requests')} />
-        <Nav active={tab === 'insights'} icon="⌁" label="Weekly reflection" onClick={() => setTab('insights')} />
+        <Nav active={tab === 'home'} icon="⌂" label="Today" onClick={() => navigate('home')} />
+        <Nav active={tab === 'pacts'} icon="♡" label="Our pact" onClick={() => navigate('pacts')} />
+        <Nav active={tab === 'requests'} icon="↗" label="Requests" badge={request.status === 'pending' ? '1' : ''} onClick={() => navigate('requests')} />
+        <Nav active={tab === 'insights'} icon="⌁" label="Weekly reflection" onClick={() => navigate('insights')} />
       </nav>
       <div className="sidebar-bottom"><button className="support">? <span>Help & support</span></button><div className="privacy"><span>♧</span><p><strong>Private by design</strong><br/>We never show browsing history.</p></div></div>
     </aside>
     <section className="content">
       <header><div><p className="eyebrow">FRIDAY, 24 JULY</p><h1>{role === 'parent' ? 'Good afternoon, Andreas.' : 'Good afternoon, Maya.'}</h1></div><div className="header-actions"><div className="role-switch"><button className={role === 'parent' ? 'selected' : ''} onClick={() => setRole('parent')}>Parent</button><button className={role === 'child' ? 'selected' : ''} onClick={() => setRole('child')}>Child</button></div><button className="avatar">AH</button></div></header>
       {tab === 'home' && <>
-      <div className="notice"><span className="notice-icon">✦</span><p><strong>Your family pact is working well.</strong> You’ve had 4 calm handovers this week.</p><button onClick={() => setTab('insights')}>See reflection →</button></div>
+      <div className="notice"><span className="notice-icon">✦</span><p><strong>Your family pact is working well.</strong> You’ve had 4 calm handovers this week.</p><button onClick={() => navigate('insights')}>See reflection →</button></div>
       <section className="hero-grid">
-        <article className="time-card"><div className="card-top"><div><p className="eyebrow">TODAY’S AGREEMENT</p><h2>After-school time</h2></div><span className="live-dot">● Active</span></div><div className="time-body"><div className="ring"><div><strong>48</strong><small>min left</small></div></div><div className="time-copy"><h3>1h 12m used of 2h</h3><div className="progress"><i/></div><p>Time ends at <strong>19:00</strong></p></div></div><div className="time-footer"><span><b>◉</b> Applies to selected fun apps</span><button onClick={() => {setShowPact(true); setTab('pacts')}}>View agreement</button></div></article>
+        <article className="time-card"><div className="card-top"><div><p className="eyebrow">TODAY’S AGREEMENT</p><h2>After-school time</h2></div><span className="live-dot">● Active</span></div><div className="time-body"><div className="ring"><div><strong>48</strong><small>min left</small></div></div><div className="time-copy"><h3>1h 12m used of 2h</h3><div className="progress"><i/></div><p>Time ends at <strong>19:00</strong></p></div></div><div className="time-footer"><span><b>◉</b> Applies to selected fun apps</span><button onClick={() => navigate('pacts')}>View agreement</button></div></article>
         <article className="device-card"><div className="card-top"><div><p className="eyebrow">WINDOWS COMPUTER</p><h2>Maya’s Surface Laptop</h2></div><span className={'device-state ' + enforcement}>{enforcement === 'warning' ? 'Ends in 48 min' : enforcement === 'extended' ? 'Extension active' : 'Muted & locked'}</span></div><div className="device-panel"><span className="laptop">▱</span><div><strong>{enforcement === 'expired' ? 'Screen is locked' : 'Ready for handover'}</strong><p>{enforcement === 'expired' ? 'Audio is muted until access resumes.' : 'Sound will mute and screen will lock at time end.'}</p></div><span className="verified">✓</span></div><div className="enforcement-row"><span>Enforcement promise</span><strong>Mute audio + lock screen</strong></div></article>
       </section>
       {request.status === 'pending' && <article className="request-card"><div className="request-symbol">{request.icon}</div><div className="request-copy"><p className="eyebrow">NEW REQUEST FROM MAYA</p><h2>{request.title}</h2><p>{request.detail}</p><blockquote>“{request.reason}”</blockquote></div><div className="request-actions">{role === 'parent' ? <><button className="secondary" onClick={decline}>Not today</button><button className="primary" onClick={approve}>Approve 30 min</button></> : <span className="pending-pill">Waiting for Andreas</span>}</div></article>}
       {request.status !== 'pending' && <article className="request-card result"><div className="request-symbol">{request.status === 'approved' ? '✓' : '–'}</div><div className="request-copy"><p className="eyebrow">REQUEST UPDATED</p><h2>{request.status === 'approved' ? 'Your extra time is approved' : 'Extra time wasn’t approved today'}</h2><p>{request.status === 'approved' ? 'Minecraft is available until 19:30. We’ll return to the normal plan tomorrow.' : 'The plan stays in place, and you can try again another day.'}</p></div></article>}
-      <section className="bottom-grid"><article className="agreement-list"><div className="section-title"><div><p className="eyebrow">THIS EVENING</p><h2>What we agreed</h2></div><button onClick={() => setTab('pacts')}>Edit pact</button></div><Rule icon="◈" title="Fun apps" sub="2 hours total · Ends at 19:00" value="48 min left"/><Rule icon="◌" title="Focus time" sub="No social apps during homework" value="Done"/><Rule icon="☾" title="Wind down" sub="Screens rest at 20:30" value="Later"/></article><article className="reflection"><p className="eyebrow">WEEKLY REFLECTION</p><div className="reflection-score"><strong>4</strong><span>calm<br/>handovers</span><span className="sprout">♧</span></div><p>You both kept the agreement four times this week. Nice work.</p><button onClick={() => setTab('insights')}>Reflect together <span>→</span></button></article></section>
+      <section className="bottom-grid"><article className="agreement-list"><div className="section-title"><div><p className="eyebrow">THIS EVENING</p><h2>What we agreed</h2></div><button onClick={() => navigate('pacts')}>Edit pact</button></div><Rule icon="◈" title="Fun apps" sub="2 hours total · Ends at 19:00" value="48 min left"/><Rule icon="◌" title="Focus time" sub="No social apps during homework" value="Done"/><Rule icon="☾" title="Wind down" sub="Screens rest at 20:30" value="Later"/></article><article className="reflection"><p className="eyebrow">WEEKLY REFLECTION</p><div className="reflection-score"><strong>4</strong><span>calm<br/>handovers</span><span className="sprout">♧</span></div><p>You both kept the agreement four times this week. Nice work.</p><button onClick={() => navigate('insights')}>Reflect together <span>→</span></button></article></section>
       </>}
       {tab === 'pacts' && <PactsPage accepted={pactAccepted} onEdit={() => setShowPact(true)} />}
       {tab === 'requests' && <RequestsPage request={request} role={role} onApprove={approve} onDecline={decline} onCreate={() => setShowRequest(true)} />}
