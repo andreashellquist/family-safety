@@ -26,7 +26,9 @@ export function AuthGate({ children }) {
       return;
     }
     neon.auth.getSession()
-      .then(({ data, error }) => setState({ loading: false, session: data?.session ?? null, error: error?.message ?? null }))
+      // Neon Auth uses Better Auth's { user, session } shape. Keep the user
+      // alongside the session so family onboarding can use its stable auth ID.
+      .then(({ data, error }) => setState({ loading: false, session: data?.session && data?.user ? { ...data.session, user: data.user } : null, error: error?.message ?? null }))
       .catch(() => setState({ loading: false, session: null, error: 'We could not reach the sign-in service.' }));
   }, []);
 
