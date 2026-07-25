@@ -115,12 +115,12 @@ create policy restriction_policies_read_member on restriction_policies for selec
 create policy restriction_targets_read_member on restriction_targets for select using (exists (select 1 from restriction_policies where restriction_policies.id = restriction_targets.policy_id and is_family_member(restriction_policies.family_id)));
 create policy policy_events_read_member on policy_events for select using (is_family_member(family_id));
 
-drop policy devices_manage_parent on devices;
-drop policy pacts_manage_parent on pacts;
-drop policy pact_rules_manage_parent on pact_rules;
-drop policy requests_manage_parent on change_requests;
-drop policy summaries_manage_parent on daily_summaries;
-drop policy enforcement_manage_parent on enforcement_states;
+drop policy if exists devices_manage_parent on devices;
+drop policy if exists pacts_manage_parent on pacts;
+drop policy if exists pact_rules_manage_parent on pact_rules;
+drop policy if exists requests_manage_parent on change_requests;
+drop policy if exists summaries_manage_parent on daily_summaries;
+drop policy if exists enforcement_manage_parent on enforcement_states;
 
 -- RPCs are the only mutation paths: each records an immutable event and keeps
 -- browser-supplied identity values out of authorization decisions.
