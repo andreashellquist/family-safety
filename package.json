@@ -12,6 +12,7 @@
   "dependencies": {
     "@vitejs/plugin-react": "latest",
     "@neondatabase/neon-js": "latest",
+    "@neondatabase/auth-ui": "latest",
     "vite": "latest",
     "react": "latest",
     "react-dom": "latest",

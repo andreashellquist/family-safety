@@ -29,6 +29,7 @@ jobs:
       - run: npm run build
         env:
           VITE_NEON_AUTH_URL: https://ep-restless-glade-asjqlwz6.neonauth.c-4.eu-central-1.aws.neon.tech/neondb/auth
+          VITE_NEON_DATA_API_URL: https://ep-restless-glade-asjqlwz6.apirest.c-4.eu-central-1.aws.neon.tech/neondb/rest/v1
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
