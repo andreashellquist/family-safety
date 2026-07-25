@@ -17,6 +17,10 @@ npm run build
 
 The Windows mute-and-lock control shown in the interface is a product integration boundary. Production enforcement requires a signed Windows service and session companion; this web prototype intentionally does not attempt to control a user's computer.
 
+The initial companion foundation is in [`windows-agent/`](windows-agent/). It is
+observe-only until a signed service, parent-authorized device enrollment, and
+transparent enforcement adapters are implemented.
+
 ## Deployment
 
 Pushing to `main` triggers the GitHub Pages workflow. Configure GitHub Pages to use **GitHub Actions** in the repository’s **Settings → Pages** if it is not already enabled.
