@@ -3,7 +3,9 @@ import { createServer } from 'node:http';
 import { Pool } from 'pg';
 
 const databaseUrl = process.env.DATABASE_URL;
-const port = Number(process.env.PORT || 8787);
+// Fly's HTTP service routes to 8080. Local development can still override this
+// with PORT=8787 (or any free port) without changing production configuration.
+const port = Number(process.env.PORT || 8080);
 if (!databaseUrl) throw new Error('DATABASE_URL is required for the private device API.');
 
 const pool = new Pool({ connectionString: databaseUrl });
