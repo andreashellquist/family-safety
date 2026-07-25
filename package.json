@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite",
+    "build": "vite build",
     "preview": "vite preview",
     "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
+    "@neondatabase/neon-js": "latest",
     "vite": "latest",
     "react": "latest",
     "react-dom": "latest",

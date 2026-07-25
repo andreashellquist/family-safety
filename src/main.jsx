@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 import './pages.css';
+import { AuthGate } from './auth.jsx';
 
 const initialRequest = {
   id: 1,
@@ -18,7 +19,7 @@ const tabForRoute = (path) => {
   return Object.entries(routeForTab).find(([, route]) => route === relativePath)?.[0] ?? 'home';
 };
 
-function App() {
+function App({ session, signOut }) {
   const [role, setRole] = useState('parent');
   const [tab, setTab] = useState(() => tabForRoute(window.location.pathname));
   const [request, setRequest] = useState(initialRequest);
@@ -34,10 +35,12 @@ function App() {
   const approve = () => { setRequest({ ...request, status: 'approved' }); setEnforcement('extended'); notify('30 minutes approved — Maya has been notified.'); };
   const decline = () => { setRequest({ ...request, status: 'declined' }); notify('Request declined with a kind note.'); };
 
+  const currentName = session.user?.name || session.user?.email?.split('@')[0] || 'there';
+  const initials = currentName.slice(0, 2).toUpperCase();
   return <main>
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">P</span><span>pact</span></div>
-      <div className="family"><div className="family-avatar">AH</div><div><strong>Andreas’s family</strong><small>2 members</small></div><span className="chevron">⌄</span></div>
+      <div className="family"><div className="family-avatar">{initials}</div><div><strong>{currentName}’s family</strong><small>2 members</small></div><span className="chevron">⌄</span></div>
       <nav>
         <Nav active={tab === 'home'} icon="⌂" label="Today" onClick={() => navigate('home')} />
         <Nav active={tab === 'pacts'} icon="♡" label="Our pact" onClick={() => navigate('pacts')} />
@@ -47,7 +50,7 @@ function App() {
       <div className="sidebar-bottom"><button className="support">? <span>Help & support</span></button><div className="privacy"><span>♧</span><p><strong>Private by design</strong><br/>We never show browsing history.</p></div></div>
     </aside>
     <section className="content">
-      <header><div><p className="eyebrow">FRIDAY, 24 JULY</p><h1>{role === 'parent' ? 'Good afternoon, Andreas.' : 'Good afternoon, Maya.'}</h1></div><div className="header-actions"><div className="role-switch"><button className={role === 'parent' ? 'selected' : ''} onClick={() => setRole('parent')}>Parent</button><button className={role === 'child' ? 'selected' : ''} onClick={() => setRole('child')}>Child</button></div><button className="avatar">AH</button></div></header>
+      <header><div><p className="eyebrow">FRIDAY, 24 JULY</p><h1>{role === 'parent' ? `Good afternoon, ${currentName}.` : 'Good afternoon, Maya.'}</h1></div><div className="header-actions"><div className="role-switch"><button className={role === 'parent' ? 'selected' : ''} onClick={() => setRole('parent')}>Parent</button><button className={role === 'child' ? 'selected' : ''} onClick={() => setRole('child')}>Child</button></div><button className="avatar" title="Sign out" onClick={signOut}>{initials}</button></div></header>
       {tab === 'home' && <>
       <div className="notice"><span className="notice-icon">✦</span><p><strong>Your family pact is working well.</strong> You’ve had 4 calm handovers this week.</p><button onClick={() => navigate('insights')}>See reflection →</button></div>
       <section className="hero-grid">
@@ -77,4 +80,4 @@ function InsightsPage() { return <div className="page-wrap"><div className="page
 function RequestModal({close}) { const [sent,setSent]=useState(false); return <div className="overlay"><div className="modal"><button className="close" onClick={close}>×</button><p className="eyebrow">ASK FOR A CHANGE</p><h2>What would help today?</h2>{sent ? <div className="success"><span>✓</span><h3>Request sent</h3><p>Your parent will see it right away.</p></div> : <><label>Extra time<small>How much would you like?</small></label><div className="choices"><button className="picked">30 min</button><button>1 hour</button><button>Custom</button></div><label>Tell them why<textarea defaultValue="I’m building with Leo and we planned it yesterday."/></label><button className="primary wide" onClick={() => setSent(true)}>Send request</button></>}</div></div> }
 function PactModal({close,accepted,accept}) { return <div className="overlay"><div className="modal pact-modal"><button className="close" onClick={close}>×</button><p className="eyebrow">OUR FAMILY PACT</p><h2>After-school time</h2><p className="modal-intro">A shared plan for fun, focus, and winding down.</p><div className="pact-rule"><span>◈</span><div><strong>Fun apps</strong><small>2 hours on school days · until 19:00</small></div><b>Both agreed</b></div><div className="pact-rule"><span>◌</span><div><strong>Homework focus</strong><small>Social apps pause during homework</small></div><b>Both agreed</b></div><div className="pact-rule"><span>☾</span><div><strong>Wind down</strong><small>Screens rest from 20:30</small></div><b className={accepted ? 'agreed' : 'awaiting'}>{accepted ? 'Both agreed' : 'Needs Maya’s yes'}</b></div>{!accepted && <button className="primary wide" onClick={accept}>Agree to this pact</button>}<p className="privacy-copy">Everyone sees the same rules and outcomes. No hidden monitoring.</p></div></div> }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(<AuthGate>{(session, signOut) => <App session={session} signOut={signOut} />}</AuthGate>);
