@@ -1,5 +1,11 @@
 name: Deploy to GitHub Pages
 
+# Pages actions currently retain their published major tags while GitHub moves
+# the hosted runtime from Node 20 to Node 24. Make that runtime explicit so
+# future hosted runs do not rely on the compatibility fallback or warn for it.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 on:
   push:
     branches: [main]
@@ -21,8 +27,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
       - run: npm install
@@ -33,7 +39,7 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
       - id: deployment
