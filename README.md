@@ -39,3 +39,12 @@ manage family data, while members can create their own change requests and pact
 acceptances. `onboard_family` is the one atomic, authenticated setup operation: it
 creates the person’s profile, family, and initial parent membership. The app keeps
 the dashboard itself on mock data until its live data flows are added.
+
+`002_family_integrity_and_restrictions.sql` adds the live family setup and policy
+foundation: one-time family invitations, a one-family-per-account invariant,
+family-scoped reference guards, versioned app/category/domain restriction targets,
+and immutable policy events. Rules are transparent proposals and require the
+affected member’s acknowledgement before becoming active. They do **not** collect
+browsing history or enforce anything in the browser; device enforcement requires a
+separately enrolled, signed companion service with policy delivery and heartbeat
+acknowledgements.

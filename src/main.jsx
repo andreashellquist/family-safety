@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 import './pages.css';
+import './settings.css';
 import { AuthGate } from './auth.jsx';
-import { createFamily, getCurrentFamily } from './family-data.js';
+import { createFamily, getCurrentFamily, joinFamilyWithInvite } from './family-data.js';
+import { FamilySettingsModal } from './family-settings.jsx';
 
 const initialRequest = {
   id: 1,
@@ -32,23 +34,28 @@ function FamilyGate({ session, signOut }) {
   };
   useEffect(() => { loadFamily(); }, [authSubject]);
   if (state.loading) return <main className="auth-loading">Loading your family…</main>;
-  if (!state.family) return <Onboarding session={session} signOut={signOut} error={state.error} onComplete={loadFamily} />;
+  if (state.error) return <FamilyLoadError signOut={signOut} retry={loadFamily} error={state.error} />;
+  if (!state.family) return <Onboarding session={session} signOut={signOut} onComplete={loadFamily} />;
   return <App session={session} signOut={signOut} family={state.family} />;
 }
 
-function Onboarding({ session, signOut, error, onComplete }) {
+function FamilyLoadError({ signOut, retry, error }) { return <main className="onboarding-shell"><section className="onboarding-card"><p className="eyebrow">FAMILY SPACE UNAVAILABLE</p><h1>We couldn’t load your family.</h1><p className="onboarding-intro">{error}</p><button className="primary wide" onClick={retry}>Try again</button><button className="sign-out-link" onClick={signOut}>Sign out</button></section></main>; }
+
+function Onboarding({ session, signOut, onComplete }) {
   const defaultName = session.user?.name || session.user?.email?.split('@')[0] || '';
   const [displayName, setDisplayName] = useState(defaultName);
   const [familyName, setFamilyName] = useState(defaultName ? `${defaultName}'s family` : '');
+  const [mode, setMode] = useState('create');
+  const [inviteCode, setInviteCode] = useState('');
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState(error);
+  const [formError, setFormError] = useState('');
   const submit = async (event) => {
     event.preventDefault(); setSaving(true); setFormError(null);
-    try { await createFamily({ familyName, displayName, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Stockholm' }); await onComplete(); }
-    catch (requestError) { setFormError(requestError.message || 'We could not create your family.'); }
+    try { if (mode === 'create') await createFamily({ familyName, displayName, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Stockholm' }); else await joinFamilyWithInvite({ inviteCode, displayName }); await onComplete(); }
+    catch (requestError) { setFormError(requestError.message || 'We could not complete family setup.'); }
     finally { setSaving(false); }
   };
-  return <main className="onboarding-shell"><style>{`.onboarding-shell{min-height:100vh;display:grid;place-items:center;padding:28px;background:linear-gradient(135deg,#f6f5ef,#ebe9fc)}.onboarding-card{width:min(470px,100%);padding:38px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 60px #2a315b16}.onboarding-card .brand{padding:0 0 38px}.onboarding-card h1{font-size:34px}.onboarding-intro{color:var(--muted);font-size:14px;line-height:1.55;margin:12px 0 25px}.onboarding-card label{display:block;font-size:13px;font-weight:600;margin:17px 0 0}.onboarding-card input{display:block;width:100%;margin-top:7px;border:1px solid #dfdfe4;border-radius:9px;padding:11px;font:14px 'DM Sans';color:var(--ink)}.onboarding-card input:focus{outline:2px solid #d8d3ff;border-color:#685bd3}.onboarding-card .wide{margin-top:22px}.onboarding-card button:disabled{opacity:.7;cursor:wait}.sign-out-link{display:block;margin:17px auto 0;background:transparent;color:#687087;font-size:12px}`}</style><section className="onboarding-card"><div className="brand"><span className="brand-mark">P</span><span>pact</span></div><p className="eyebrow">WELCOME</p><h1>Start your family space</h1><p className="onboarding-intro">Set up the shared place for agreements and requests. You’ll be the first parent; dashboard data stays in its safe mock mode for now.</p><form onSubmit={submit}><label>Your name<input required maxLength="80" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Andreas" /></label><label>Family name<input required maxLength="100" value={familyName} onChange={(event) => setFamilyName(event.target.value)} placeholder="The Andersson family" /></label>{formError && <p className="auth-error">{formError}</p>}<button className="primary wide" disabled={saving}>{saving ? 'Creating your family…' : 'Create family'}</button></form><button className="sign-out-link" onClick={signOut}>Sign out</button></section></main>;
+  return <main className="onboarding-shell"><style>{`.onboarding-shell{min-height:100vh;display:grid;place-items:center;padding:28px;background:linear-gradient(135deg,#f6f5ef,#ebe9fc)}.onboarding-card{width:min(470px,100%);padding:38px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 60px #2a315b16}.onboarding-card .brand{padding:0 0 38px}.onboarding-card h1{font-size:34px}.onboarding-intro{color:var(--muted);font-size:14px;line-height:1.55;margin:12px 0 25px}.onboarding-card label{display:block;font-size:13px;font-weight:600;margin:17px 0 0}.onboarding-card input{display:block;width:100%;margin-top:7px;border:1px solid #dfdfe4;border-radius:9px;padding:11px;font:14px 'DM Sans';color:var(--ink)}.onboarding-card input:focus{outline:2px solid #d8d3ff;border-color:#685bd3}.onboarding-card .wide{margin-top:22px}.onboarding-card button:disabled{opacity:.7;cursor:wait}.sign-out-link{display:block;margin:17px auto 0;background:transparent;color:#687087;font-size:12px}.onboarding-switch{display:flex;gap:8px;margin:0 0 18px}.onboarding-switch button{flex:1;padding:8px;border-radius:8px;background:#f0eff6;color:#5d587a;font-size:12px}.onboarding-switch .selected{background:#5f51d2;color:#fff}`}</style><section className="onboarding-card"><div className="brand"><span className="brand-mark">P</span><span>pact</span></div><p className="eyebrow">WELCOME</p><h1>{mode === 'create' ? 'Start your family space' : 'Join your family space'}</h1><p className="onboarding-intro">{mode === 'create' ? 'Set up shared agreements and requests. You’ll be the first parent; dashboard data stays in safe mock mode for now.' : 'Use the one-time invite code shared by your parent. You’ll see every rule that affects you.'}</p><div className="onboarding-switch"><button type="button" className={mode === 'create' ? 'selected' : ''} onClick={() => setMode('create')}>Create family</button><button type="button" className={mode === 'join' ? 'selected' : ''} onClick={() => setMode('join')}>Use invite code</button></div><form onSubmit={submit}><label>Your name<input required maxLength="80" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Andreas" /></label>{mode === 'create' ? <label>Family name<input required maxLength="100" value={familyName} onChange={(event) => setFamilyName(event.target.value)} placeholder="The Andersson family" /></label> : <label>Invite code<input required value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} placeholder="Shared one-time code" /></label>}{formError && <p className="auth-error" role="alert">{formError}</p>}<button className="primary wide" disabled={saving}>{saving ? 'Saving…' : mode === 'create' ? 'Create family' : 'Join family'}</button></form><button className="sign-out-link" onClick={signOut}>Sign out</button></section></main>;
 }
 
 function App({ session, signOut, family }) {
@@ -58,14 +65,15 @@ function App({ session, signOut, family }) {
   const [pactAccepted, setPactAccepted] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
   const [showPact, setShowPact] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [enforcement, setEnforcement] = useState('warning');
   const [toast, setToast] = useState('');
 
   const notify = (message) => { setToast(message); window.setTimeout(() => setToast(''), 2800); };
   const navigate = (nextTab) => { window.location.assign(`${basePath}${routeForTab[nextTab]}`); };
   useEffect(() => { const onPopState = () => setTab(tabForRoute(window.location.pathname)); window.addEventListener('popstate', onPopState); return () => window.removeEventListener('popstate', onPopState); }, []);
-  const approve = () => { setRequest({ ...request, status: 'approved' }); setEnforcement('extended'); notify('30 minutes approved — Maya has been notified.'); };
-  const decline = () => { setRequest({ ...request, status: 'declined' }); notify('Request declined with a kind note.'); };
+  const approve = () => { setRequest({ ...request, status: 'approved' }); setEnforcement('extended'); notify('Demo preview updated — no device or notification was changed.'); };
+  const decline = () => { setRequest({ ...request, status: 'declined' }); notify('Demo preview updated — no request was sent.'); };
 
   const currentName = session.user?.name || session.user?.email?.split('@')[0] || 'there';
   const initials = currentName.slice(0, 2).toUpperCase();
@@ -78,11 +86,13 @@ function App({ session, signOut, family }) {
         <Nav active={tab === 'pacts'} icon="♡" label="Our pact" onClick={() => navigate('pacts')} />
         <Nav active={tab === 'requests'} icon="↗" label="Requests" badge={request.status === 'pending' ? '1' : ''} onClick={() => navigate('requests')} />
         <Nav active={tab === 'insights'} icon="⌁" label="Weekly reflection" onClick={() => navigate('insights')} />
+        <Nav icon="⚙" label="Family settings" onClick={() => setShowSettings(true)} />
       </nav>
       <div className="sidebar-bottom"><button className="support">? <span>Help & support</span></button><div className="privacy"><span>♧</span><p><strong>Private by design</strong><br/>We never show browsing history.</p></div></div>
     </aside>
     <section className="content">
-      <header><div><p className="eyebrow">FRIDAY, 24 JULY</p><h1>{role === 'parent' ? `Good afternoon, ${currentName}.` : 'Good afternoon, Maya.'}</h1></div><div className="header-actions"><div className="role-switch"><button className={role === 'parent' ? 'selected' : ''} onClick={() => setRole('parent')}>Parent</button><button className={role === 'child' ? 'selected' : ''} onClick={() => setRole('child')}>Child</button></div><button className="avatar" title="Sign out" onClick={signOut}>{initials}</button></div></header>
+      <header><div><p className="eyebrow">FRIDAY, 24 JULY</p><h1>{role === 'parent' ? `Good afternoon, ${currentName}.` : 'Good afternoon, Maya.'}</h1></div><div className="header-actions"><div className="role-switch" aria-label="Demo preview role"><button className={role === 'parent' ? 'selected' : ''} onClick={() => setRole('parent')}>Preview parent</button><button className={role === 'child' ? 'selected' : ''} onClick={() => setRole('child')}>Preview child</button></div><button className="avatar" aria-label="Sign out" title="Sign out" onClick={signOut}>{initials}</button></div></header>
+      <div className="demo-banner" role="status"><strong>Demo preview:</strong> agreements, requests, device status, and notifications below are mock data. Family setup and restriction proposals are the only live flows.</div>
       {tab === 'home' && <>
       <div className="notice"><span className="notice-icon">✦</span><p><strong>Your family pact is working well.</strong> You’ve had 4 calm handovers this week.</p><button onClick={() => navigate('insights')}>See reflection →</button></div>
       <section className="hero-grid">
@@ -98,7 +108,8 @@ function App({ session, signOut, family }) {
       {tab === 'insights' && <InsightsPage />}
     </section>
     {showRequest && <RequestModal close={() => setShowRequest(false)} />}
-    {showPact && <PactModal accepted={pactAccepted} accept={() => {setPactAccepted(true); notify('Your family pact is now active.')}} close={() => setShowPact(false)} />}
+    {showPact && <PactModal accepted={pactAccepted} accept={() => {setPactAccepted(true); notify('Demo pact preview updated — no agreement was activated.')}} close={() => setShowPact(false)} />}
+    {showSettings && <FamilySettingsModal familyRole={family.role} currentUserId={family.user.id} close={() => setShowSettings(false)} />}
     <button className="floating-request" onClick={() => setShowRequest(true)}>+ Request a change</button>
     {toast && <div className="toast">✓ {toast}</div>}
   </main>;

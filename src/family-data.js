@@ -31,3 +31,48 @@ export async function createFamily({ familyName, displayName, timezone }) {
   if (error) throw error;
   return Array.isArray(data) ? data[0] : data;
 }
+
+async function callRpc(name, args) {
+  if (!neon) throw new Error('Neon Data API is not configured.');
+  const { data, error } = await neon.rpc(name, args);
+  if (error) throw error;
+  return data;
+}
+
+export async function getFamilyRoster() {
+  return callRpc('get_family_roster', {});
+}
+
+export async function createFamilyInvitation(role = 'child') {
+  const data = await callRpc('create_family_invitation', { invited_role: role });
+  return Array.isArray(data) ? data[0] : data;
+}
+
+export async function joinFamilyWithInvite({ inviteCode, displayName }) {
+  const data = await callRpc('join_family_with_invite', { invite_code: inviteCode, display_name: displayName });
+  return Array.isArray(data) ? data[0] : data;
+}
+
+export async function createRestrictionPolicy({ title, memberId, targets }) {
+  return callRpc('create_restriction_policy', {
+    policy_title: title,
+    target_member_id: memberId,
+    target_rules: targets
+  });
+}
+
+export async function getRestrictionPolicies(memberId) {
+  if (!neon) throw new Error('Neon Data API is not configured.');
+  let query = neon
+    .from('restriction_policies')
+    .select('id, title, status, member_id, restriction_targets(target_type, target_value, action, allowance_minutes)')
+    .order('created_at', { ascending: false });
+  if (memberId) query = query.eq('member_id', memberId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function acknowledgeRestrictionPolicy(policyId) {
+  return callRpc('acknowledge_restriction_policy', { policy_uuid: policyId });
+}
