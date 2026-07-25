@@ -163,7 +163,7 @@ begin
   if auth.user_id() is null then raise exception 'An authenticated session is required.' using errcode = '42501'; end if;
   insert into public.app_users (auth_subject, display_name) values (auth.user_id()::text, display_name)
     on conflict (auth_subject) do update set display_name = excluded.display_name returning app_users.id into onboarding_user_id;
-  if exists (select 1 from public.family_memberships where user_id = onboarding_user_id) then
+  if exists (select 1 from public.family_memberships membership where membership.user_id = onboarding_user_id) then
     raise exception 'This account already belongs to a family.' using errcode = '23505';
   end if;
   insert into public.families (name, timezone) values (family_name, family_timezone) returning * into new_family;
