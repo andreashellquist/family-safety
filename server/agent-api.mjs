@@ -24,10 +24,24 @@ const readJson = async (request) => {
 };
 const bearer = (request) => request.headers.authorization?.match(/^Bearer ([A-Za-z0-9_-]{32,})$/)?.[1] ?? null;
 const isUuid = (value) => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+const enrollmentAttempts = new Map();
+const allowEnrollmentAttempt = (request) => {
+  const address = request.socket.remoteAddress ?? 'unknown';
+  const now = Date.now();
+  const windowMs = 10 * 60 * 1000;
+  const entry = enrollmentAttempts.get(address);
+  if (!entry || entry.expiresAt <= now) {
+    enrollmentAttempts.set(address, { count: 1, expiresAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= 5) return false;
+  entry.count += 1;
+  return true;
+};
 
-async function enroll({ pairingCode, installationId }) {
-  if (typeof pairingCode !== 'string' || !/^[A-F0-9]{24}$/i.test(pairingCode) || !isUuid(installationId)) {
-    return { status: 400, body: { error: 'A valid pairing code and installation ID are required.' } };
+async function enroll({ pairingCode, installationId, windowsAccountSid }) {
+  if (typeof pairingCode !== 'string' || !/^[A-F0-9]{24}$/i.test(pairingCode) || !isUuid(installationId) || typeof windowsAccountSid !== 'string' || !/^S-1-5-21-(?:\d+-){2}\d+-\d+$/.test(windowsAccountSid)) {
+    return { status: 400, body: { error: 'A valid pairing code, installation ID, and Windows account are required.' } };
   }
 
   const client = await pool.connect();
@@ -50,9 +64,9 @@ async function enroll({ pairingCode, installationId }) {
       return { status: 409, body: { error: 'This installation is already enrolled.' } };
     }
     const device = await client.query(`
-      insert into public.devices (family_id, member_id, platform, display_name, installation_id, last_seen_at)
-      values ($1, $2, 'windows', $3, $4, now()) returning id
-    `, [code.family_id, code.member_id, code.device_label, installationId]);
+      insert into public.devices (family_id, member_id, platform, display_name, installation_id, windows_account_sid, enforcement_mode, last_seen_at)
+      values ($1, $2, 'windows', $3, $4, $5, 'observe_only', now()) returning id
+    `, [code.family_id, code.member_id, code.device_label, installationId, windowsAccountSid]);
     const token = randomBytes(32).toString('base64url');
     await client.query('insert into public.device_credentials (device_id, token_hash) values ($1, $2)', [device.rows[0].id, digest(token)]);
     await client.query('update public.device_pairing_codes set claimed_at = now(), claimed_device_id = $1 where id = $2', [device.rows[0].id, code.id]);
@@ -74,7 +88,9 @@ async function authenticateDevice(deviceId, token) {
     where device.id = $1 and credential.token_hash = $2 and credential.revoked_at is null
       and (credential.expires_at is null or credential.expires_at > now())
   `, [deviceId, digest(token)]);
-  return result.rows[0] ?? null;
+  const device = result.rows[0] ?? null;
+  if (device) await pool.query('update public.device_credentials set last_used_at = now() where device_id = $1 and token_hash = $2', [device.id, digest(token)]);
+  return device;
 }
 
 async function policyFor(device) {
@@ -92,6 +108,8 @@ async function policyFor(device) {
   return {
     documentId: randomUUID(), deviceId: device.id, version,
     issuedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    enforcementMode: 'observe_only',
+    unsupportedRules: result.rows.map((row) => ({ policyId: row.id, type: row.target_type, target: row.target_value, action: row.action, reason: 'Windows enforcement is not available in this preview client.' })),
     rules: result.rows.map((row) => ({ policyId: row.id, title: row.title, startsAt: row.starts_at, endsAt: row.ends_at, type: row.target_type, target: row.target_value, action: row.action, allowanceMinutes: row.allowance_minutes, reason: row.reason, schedule: row.schedule }))
   };
 }
@@ -104,6 +122,7 @@ const server = createServer(async (request, response) => {
       return json(response, 200, { ok: true });
     }
     if (request.method === 'POST' && url.pathname === '/v1/device-enrollments') {
+      if (!allowEnrollmentAttempt(request)) return json(response, 429, { error: 'Too many enrollment attempts. Wait ten minutes and try again.' });
       const result = await enroll(await readJson(request));
       return json(response, result.status, result.body);
     }

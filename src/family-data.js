@@ -89,3 +89,11 @@ export async function createDevicePairingCode({ memberId, deviceLabel }) {
 export async function getDevicePairingCodes() {
   return callRpc('get_device_pairing_codes', {});
 }
+
+export async function getFamilyDevices() {
+  return callRpc('get_family_devices', {});
+}
+
+export async function revokeFamilyDevice(deviceId) {
+  return callRpc('revoke_family_device', { device_uuid: deviceId });
+}
