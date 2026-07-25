@@ -1,8 +1,26 @@
 begin;
 
 -- One account belongs to one family in the current product model. This closes
--- the bootstrap race and makes `getCurrentFamily` deterministic.
-alter table family_memberships add constraint family_memberships_user_unique unique (user_id);
+-- the bootstrap race and makes `getCurrentFamily` deterministic. Legacy data
+-- gets a clear repair error instead of an opaque unique-constraint failure.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.family_memberships'::regclass
+      and conname = 'family_memberships_user_unique'
+  ) then
+    if exists (
+      select 1 from public.family_memberships
+      group by user_id
+      having count(*) > 1
+    ) then
+      raise exception 'Cannot enforce one-family-per-account: duplicate family memberships exist.' using errcode = '23505';
+    end if;
+    alter table family_memberships add constraint family_memberships_user_unique unique (user_id);
+  end if;
+end;
+$$;
 
 create table family_invitations (
   id uuid primary key default gen_random_uuid(),
@@ -62,7 +80,7 @@ create index restriction_policies_family_member_idx on restriction_policies(fami
 create index restriction_targets_policy_idx on restriction_targets(policy_id);
 create index policy_events_family_created_idx on policy_events(family_id, created_at desc);
 
-alter table daily_summaries drop constraint daily_summaries_member_id_device_id_summary_date_category_key;
+alter table daily_summaries drop constraint if exists daily_summaries_member_id_device_id_summary_date_category_key;
 alter table daily_summaries add constraint daily_summaries_unique unique nulls not distinct (member_id, device_id, summary_date, category);
 
 create trigger restriction_policies_updated_at before update on restriction_policies for each row execute function set_updated_at();
@@ -183,7 +201,8 @@ begin
   select * into policy from public.restriction_policies where id = policy_uuid for update;
   if policy.id is null or not public.is_family_member(policy.family_id) then raise exception 'Policy not found.' using errcode = '42501'; end if;
   if policy.member_id <> public.current_app_user_id() then raise exception 'Only the affected member can acknowledge this policy.' using errcode = '42501'; end if;
-  update public.restriction_policies set status = 'active' where id = policy.id and status = 'proposed';
+  if policy.status <> 'proposed' then raise exception 'Only a proposed policy can be acknowledged.' using errcode = '23514'; end if;
+  update public.restriction_policies set status = 'active' where id = policy.id;
   insert into public.policy_events (family_id, policy_id, actor_id, event_type) values (policy.family_id, policy.id, public.current_app_user_id(), 'acknowledged');
   insert into public.policy_events (family_id, policy_id, actor_id, event_type) values (policy.family_id, policy.id, public.current_app_user_id(), 'activated');
 end;
