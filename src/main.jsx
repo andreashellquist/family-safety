@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 import './pages.css';
 import { AuthGate } from './auth.jsx';
+import { createFamily, getCurrentFamily } from './family-data.js';
 
 const initialRequest = {
   id: 1,
@@ -19,7 +20,38 @@ const tabForRoute = (path) => {
   return Object.entries(routeForTab).find(([, route]) => route === relativePath)?.[0] ?? 'home';
 };
 
-function App({ session, signOut }) {
+function FamilyGate({ session, signOut }) {
+  const [state, setState] = useState({ loading: true, family: null, error: null });
+  const authSubject = session.user?.id;
+  const loadFamily = async () => {
+    if (!authSubject) return setState({ loading: false, family: null, error: 'Your session is missing an account identifier.' });
+    try {
+      setState((previous) => ({ ...previous, loading: true, error: null }));
+      setState({ loading: false, family: await getCurrentFamily(authSubject), error: null });
+    } catch (error) { setState({ loading: false, family: null, error: error.message || 'We could not load your family.' }); }
+  };
+  useEffect(() => { loadFamily(); }, [authSubject]);
+  if (state.loading) return <main className="auth-loading">Loading your family…</main>;
+  if (!state.family) return <Onboarding session={session} signOut={signOut} error={state.error} onComplete={loadFamily} />;
+  return <App session={session} signOut={signOut} family={state.family} />;
+}
+
+function Onboarding({ session, signOut, error, onComplete }) {
+  const defaultName = session.user?.name || session.user?.email?.split('@')[0] || '';
+  const [displayName, setDisplayName] = useState(defaultName);
+  const [familyName, setFamilyName] = useState(defaultName ? `${defaultName}'s family` : '');
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState(error);
+  const submit = async (event) => {
+    event.preventDefault(); setSaving(true); setFormError(null);
+    try { await createFamily({ familyName, displayName, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Stockholm' }); await onComplete(); }
+    catch (requestError) { setFormError(requestError.message || 'We could not create your family.'); }
+    finally { setSaving(false); }
+  };
+  return <main className="onboarding-shell"><style>{`.onboarding-shell{min-height:100vh;display:grid;place-items:center;padding:28px;background:linear-gradient(135deg,#f6f5ef,#ebe9fc)}.onboarding-card{width:min(470px,100%);padding:38px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 60px #2a315b16}.onboarding-card .brand{padding:0 0 38px}.onboarding-card h1{font-size:34px}.onboarding-intro{color:var(--muted);font-size:14px;line-height:1.55;margin:12px 0 25px}.onboarding-card label{display:block;font-size:13px;font-weight:600;margin:17px 0 0}.onboarding-card input{display:block;width:100%;margin-top:7px;border:1px solid #dfdfe4;border-radius:9px;padding:11px;font:14px 'DM Sans';color:var(--ink)}.onboarding-card input:focus{outline:2px solid #d8d3ff;border-color:#685bd3}.onboarding-card .wide{margin-top:22px}.onboarding-card button:disabled{opacity:.7;cursor:wait}.sign-out-link{display:block;margin:17px auto 0;background:transparent;color:#687087;font-size:12px}`}</style><section className="onboarding-card"><div className="brand"><span className="brand-mark">P</span><span>pact</span></div><p className="eyebrow">WELCOME</p><h1>Start your family space</h1><p className="onboarding-intro">Set up the shared place for agreements and requests. You’ll be the first parent; dashboard data stays in its safe mock mode for now.</p><form onSubmit={submit}><label>Your name<input required maxLength="80" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Andreas" /></label><label>Family name<input required maxLength="100" value={familyName} onChange={(event) => setFamilyName(event.target.value)} placeholder="The Andersson family" /></label>{formError && <p className="auth-error">{formError}</p>}<button className="primary wide" disabled={saving}>{saving ? 'Creating your family…' : 'Create family'}</button></form><button className="sign-out-link" onClick={signOut}>Sign out</button></section></main>;
+}
+
+function App({ session, signOut, family }) {
   const [role, setRole] = useState('parent');
   const [tab, setTab] = useState(() => tabForRoute(window.location.pathname));
   const [request, setRequest] = useState(initialRequest);
@@ -40,7 +72,7 @@ function App({ session, signOut }) {
   return <main>
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">P</span><span>pact</span></div>
-      <div className="family"><div className="family-avatar">{initials}</div><div><strong>{currentName}’s family</strong><small>2 members</small></div><span className="chevron">⌄</span></div>
+      <div className="family"><div className="family-avatar">{initials}</div><div><strong>{family.families.name}</strong><small>Family space</small></div><span className="chevron">⌄</span></div>
       <nav>
         <Nav active={tab === 'home'} icon="⌂" label="Today" onClick={() => navigate('home')} />
         <Nav active={tab === 'pacts'} icon="♡" label="Our pact" onClick={() => navigate('pacts')} />
@@ -80,4 +112,4 @@ function InsightsPage() { return <div className="page-wrap"><div className="page
 function RequestModal({close}) { const [sent,setSent]=useState(false); return <div className="overlay"><div className="modal"><button className="close" onClick={close}>×</button><p className="eyebrow">ASK FOR A CHANGE</p><h2>What would help today?</h2>{sent ? <div className="success"><span>✓</span><h3>Request sent</h3><p>Your parent will see it right away.</p></div> : <><label>Extra time<small>How much would you like?</small></label><div className="choices"><button className="picked">30 min</button><button>1 hour</button><button>Custom</button></div><label>Tell them why<textarea defaultValue="I’m building with Leo and we planned it yesterday."/></label><button className="primary wide" onClick={() => setSent(true)}>Send request</button></>}</div></div> }
 function PactModal({close,accepted,accept}) { return <div className="overlay"><div className="modal pact-modal"><button className="close" onClick={close}>×</button><p className="eyebrow">OUR FAMILY PACT</p><h2>After-school time</h2><p className="modal-intro">A shared plan for fun, focus, and winding down.</p><div className="pact-rule"><span>◈</span><div><strong>Fun apps</strong><small>2 hours on school days · until 19:00</small></div><b>Both agreed</b></div><div className="pact-rule"><span>◌</span><div><strong>Homework focus</strong><small>Social apps pause during homework</small></div><b>Both agreed</b></div><div className="pact-rule"><span>☾</span><div><strong>Wind down</strong><small>Screens rest from 20:30</small></div><b className={accepted ? 'agreed' : 'awaiting'}>{accepted ? 'Both agreed' : 'Needs Maya’s yes'}</b></div>{!accepted && <button className="primary wide" onClick={accept}>Agree to this pact</button>}<p className="privacy-copy">Everyone sees the same rules and outcomes. No hidden monitoring.</p></div></div> }
 
-createRoot(document.getElementById('root')).render(<AuthGate>{(session, signOut) => <App session={session} signOut={signOut} />}</AuthGate>);
+createRoot(document.getElementById('root')).render(<AuthGate>{(session, signOut) => <FamilyGate session={session} signOut={signOut} />}</AuthGate>);

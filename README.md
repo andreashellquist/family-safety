@@ -32,3 +32,10 @@ npm run db:migrate
 ```
 
 Do not put the connection string in `.env`, GitHub Pages, or browser-side code. A server API and Neon Auth session validation will use it only in their private deployment environment.
+
+The migration enables Row Level Security for every Data API table. A signed-in person
+can only read their own profile and the rows belonging to their family; parents can
+manage family data, while members can create their own change requests and pact
+acceptances. `onboard_family` is the one atomic, authenticated setup operation: it
+creates the person’s profile, family, and initial parent membership. The app keeps
+the dashboard itself on mock data until its live data flows are added.

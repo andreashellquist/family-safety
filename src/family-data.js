@@ -22,3 +22,12 @@ export async function getCurrentFamily(authSubject) {
   if (membershipError) throw membershipError;
   return membership ? { user, ...membership } : null;
 }
+
+export async function createFamily({ familyName, displayName, timezone }) {
+  if (!neon) throw new Error('Neon Data API is not configured.');
+  const { data, error } = await neon.rpc('onboard_family', {
+    family_name: familyName, display_name: displayName, family_timezone: timezone
+  });
+  if (error) throw error;
+  return Array.isArray(data) ? data[0] : data;
+}
