@@ -6,13 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "pg": "^8.16.3"
   },
   "devDependencies": {}
 }

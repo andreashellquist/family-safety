@@ -20,3 +20,15 @@ The Windows mute-and-lock control shown in the interface is a product integratio
 ## Deployment
 
 Pushing to `main` triggers the GitHub Pages workflow. Configure GitHub Pages to use **GitHub Actions** in the repository’s **Settings → Pages** if it is not already enabled.
+
+## Neon database
+
+The database schema is in `db/migrations/001_family_safety.sql`. To apply it to the dedicated Neon database, set the rotated connection string in a local environment variable and run:
+
+```bash
+export DATABASE_URL='your-rotated-neon-connection-string'
+npm install
+npm run db:migrate
+```
+
+Do not put the connection string in `.env`, GitHub Pages, or browser-side code. A server API and Neon Auth session validation will use it only in their private deployment environment.
