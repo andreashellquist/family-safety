@@ -76,3 +76,16 @@ export async function getRestrictionPolicies(memberId) {
 export async function acknowledgeRestrictionPolicy(policyId) {
   return callRpc('acknowledge_restriction_policy', { policy_uuid: policyId });
 }
+
+export async function createDevicePairingCode({ memberId, deviceLabel }) {
+  const data = await callRpc('create_device_pairing_code', {
+    target_member_id: memberId,
+    requested_device_label: deviceLabel,
+    valid_for_minutes: 15
+  });
+  return Array.isArray(data) ? data[0] : data;
+}
+
+export async function getDevicePairingCodes() {
+  return callRpc('get_device_pairing_codes', {});
+}

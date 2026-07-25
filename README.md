@@ -21,6 +21,11 @@ The initial companion foundation is in [`windows-agent/`](windows-agent/). It is
 observe-only until a signed service, parent-authorized device enrollment, and
 transparent enforcement adapters are implemented.
 
+`003_device_pairing.sql` adds a parent-only, 15-minute Windows pairing code.
+Only its hash is stored. Redeeming a code must happen in a server-side device
+enrollment endpoint that issues a narrowly scoped device credential; the agent
+must never use a browser session token or query Neon Data API tables directly.
+
 ## Deployment
 
 Pushing to `main` triggers the GitHub Pages workflow. Configure GitHub Pages to use **GitHub Actions** in the repository’s **Settings → Pages** if it is not already enabled.
