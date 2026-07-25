@@ -97,7 +97,10 @@ async function policyFor(device) {
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, `http://${request.headers.host ?? 'localhost'}`);
-    if (request.method === 'GET' && url.pathname === '/healthz') return json(response, 200, { ok: true });
+    if (request.method === 'GET' && url.pathname === '/healthz') {
+      await pool.query('select 1');
+      return json(response, 200, { ok: true });
+    }
     if (request.method === 'POST' && url.pathname === '/v1/device-enrollments') {
       const result = await enroll(await readJson(request));
       return json(response, result.status, result.body);
