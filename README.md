@@ -26,6 +26,12 @@ Only its hash is stored. Redeeming a code must happen in a server-side device
 enrollment endpoint that issues a narrowly scoped device credential; the agent
 must never use a browser session token or query Neon Data API tables directly.
 
+`005_device_agent_service.sql` and [`server/`](server/) provide that private
+enrollment and policy-delivery service. GitHub Pages cannot host it: deploy it
+behind HTTPS with a private `DATABASE_URL`, then give the Windows installer its
+HTTPS base URL. The service only records pairing, policy delivery, and the
+agent's policy/enforcement state—never browsing history, files, or screen data.
+
 ## Deployment
 
 Pushing to `main` triggers the GitHub Pages workflow. Configure GitHub Pages to use **GitHub Actions** in the repository’s **Settings → Pages** if it is not already enabled.
@@ -38,6 +44,12 @@ The database schema is in `db/migrations/001_family_safety.sql`. To apply it to 
 export DATABASE_URL='your-rotated-neon-connection-string'
 npm install
 npm run db:migrate
+```
+
+To run the private device API after the migration is applied:
+
+```bash
+DATABASE_URL='your-rotated-neon-connection-string' npm run agent-api
 ```
 
 Do not put the connection string in `.env`, GitHub Pages, or browser-side code. A server API and Neon Auth session validation will use it only in their private deployment environment.
