@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<script>
+  // GitHub Pages has no SPA rewrite support. Preserve Neon Auth routes and
+  // callback parameters by returning them to the app entry point.
+  (function () {
+    var base = '/family-safety/';
+    var path = window.location.pathname;
+    var suffix = path.indexOf(base) === 0 ? path.slice(base.length) : '';
+    var authPath = suffix.split('/').filter(Boolean).pop();
+    var query = window.location.search ? window.location.search.replace(/^\?/, '&') : '';
+    window.location.replace(base + '?auth_path=' + encodeURIComponent(authPath || 'sign-in') + query + window.location.hash);
+  }());
+</script>
