@@ -21,6 +21,20 @@ function currentAuthViewPath() {
 export function AuthGate({ children }) {
   const [state, setState] = useState({ loading: true, session: null, error: null });
 
+  const signOut = async () => {
+    // Clear the in-memory session immediately so a failed redirect or a slow
+    // cookie update cannot leave the dashboard visibly signed in.
+    setState({ loading: false, session: null, error: null });
+    const baseUrl = new URL(import.meta.env.BASE_URL, window.location.origin);
+    window.history.replaceState({}, '', baseUrl.pathname);
+    try {
+      await neon.auth.signOut();
+    } catch {
+      // The local session has already been cleared. A later refresh lets the
+      // auth provider reconcile its cookie if the network was unavailable.
+    }
+  };
+
   useEffect(() => {
     if (!neon) {
       setState({ loading: false, session: null, error: 'Neon Auth or the Data API has not been configured for this environment.' });
@@ -34,7 +48,7 @@ export function AuthGate({ children }) {
   }, []);
 
   if (state.loading) return <main className="auth-loading">Checking your secure session…</main>;
-  if (state.session) return children(state.session, () => neon.auth.signOut());
+  if (state.session) return children(state.session, signOut);
 
   return <main className="auth-shell"><section className="auth-intro"><div className="brand"><span className="brand-mark">P</span><span>pact</span></div><p className="eyebrow">FOR FAMILIES</p><h1>Make room for trust.</h1><p>Shared agreements, thoughtful requests, and no hidden monitoring.</p><small>Private by design · No browsing history</small></section><section className="auth-panel"><div><LanguageSwitcher /><p className="eyebrow">WELCOME</p><h2>Sign in to your family</h2>{state.error && <p className="auth-error">{state.error}</p>}<NeonAuthUIProvider authClient={neon.auth} basePath={`${import.meta.env.BASE_URL}auth`} redirectTo={`${import.meta.env.BASE_URL}`}><AuthView path={currentAuthViewPath()} /></NeonAuthUIProvider></div></section></main>;
 }
